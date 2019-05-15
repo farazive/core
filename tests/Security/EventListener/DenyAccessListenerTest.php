@@ -27,7 +27,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
-use Symfony\Component\Security\Core\Role\RoleHierarchyInterface;
+use Symfony\Component\Security\Core\Role\RoleHierarchy;
 
 /**
  * @author Kévin Dunglas <dunglas@gmail.com>
@@ -268,7 +268,7 @@ class DenyAccessListenerTest extends TestCase
     {
         $authenticationTrustResolverProphecy = $this->prophesize(AuthenticationTrustResolverInterface::class);
 
-        $roleHierarchyInterfaceProphecy = $this->prophesize(RoleHierarchyInterface::class);
+        $roleHierarchyInterfaceProphecy = $this->prophesize(RoleHierarchy::class);
         $roleHierarchyInterfaceProphecy->getReachableRoles(Argument::type('array'))->willReturn([]);
 
         $tokenProphecy = $this->prophesize(TokenInterface::class);
