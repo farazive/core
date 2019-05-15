@@ -148,7 +148,7 @@ jobs:
     docker:
       - image: circleci/php:7.2-node-browsers
     environment:
-      SYMFONY_DEPRECATIONS_HELPER: weak_vendors
+      SYMFONY_DEPRECATIONS_HELPER: max[self]=0
     parallelism: 2
     working_directory: ~/api-platform/core
     steps:

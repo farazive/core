@@ -25,6 +25,8 @@ use Symfony\Component\HttpKernel\EventListener\ExceptionListener as BaseExceptio
  */
 final class ExceptionListener extends BaseExceptionListener
 {
+
+
     public function onKernelException(GetResponseForExceptionEvent $event): void
     {
         $request = $event->getRequest();

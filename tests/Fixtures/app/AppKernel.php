@@ -29,8 +29,8 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\RouteCollectionBuilder;
+use Symfony\Component\Security\Core\Encoder\SodiumPasswordEncoder;
 use Symfony\Component\Security\Core\User\UserInterface;
-
 /**
  * AppKernel for tests.
  *
@@ -96,10 +96,11 @@ class AppKernel extends Kernel
 
         $loader->load(__DIR__."/config/config_{$this->getEnvironment()}.yml");
 
+        $alg = class_exists(SodiumPasswordEncoder::class ? 'auto' : 'bcrypt');
         $securityConfig = [
             'encoders' => [
-                User::class => 'bcrypt',
-                UserDocument::class => 'bcrypt',
+                User::class => $alg,
+                UserDocument::class => $alg,
                 // Don't use plaintext in production!
                 UserInterface::class => 'plaintext',
             ],

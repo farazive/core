@@ -71,7 +71,7 @@
         "symfony/form": "^3.4 || ^4.0",
         "symfony/framework-bundle": "^4.2",
         "symfony/mercure-bundle": "*",
-        "symfony/messenger": "^4.2",
+        "symfony/messenger": "^4.3",
         "symfony/phpunit-bridge": "^3.4.5 || ^4.0.5",
         "symfony/routing": "^3.4 || ^4.0",
         "symfony/security-bundle": "^3.4 || ^4.0",
