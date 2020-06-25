@@ -91,13 +91,14 @@ class SearchFilter extends AbstractContextAwareFilter implements SearchFilterInt
 
         $caseSensitive = true;
         $metadata = $this->getNestedMetadata($resourceClass, $associations);
+        $doctrineTypeField = $this->getDoctrineFieldType($property, $resourceClass);
 
         if ($metadata->hasField($field)) {
             if ('id' === $field) {
                 $values = array_map([$this, 'getIdFromValue'], $values);
             }
 
-            if (!$this->hasValidValues($values, $this->getDoctrineFieldType($property, $resourceClass))) {
+            if (!$this->hasValidValues($values, $doctrineTypeField)) {
                 $this->logger->notice('Invalid filter ignored', [
                     'exception' => new InvalidArgumentException(sprintf('Values for field "%s" are not valid according to the doctrine type.', $field)),
                 ]);
@@ -114,7 +115,7 @@ class SearchFilter extends AbstractContextAwareFilter implements SearchFilterInt
             }
 
             if (1 === \count($values)) {
-                $this->addWhereByStrategy($strategy, $queryBuilder, $queryNameGenerator, $alias, $field, $values[0], $caseSensitive);
+                $this->addWhereByStrategy($strategy, $queryBuilder, $queryNameGenerator, $alias, $field, $values[0], $caseSensitive, $doctrineTypeField);
 
                 return;
             }
@@ -127,12 +128,7 @@ class SearchFilter extends AbstractContextAwareFilter implements SearchFilterInt
                 return;
             }
 
-            $wrapCase = $this->createWrapCase($caseSensitive);
-            $valueParameter = $queryNameGenerator->generateParameterName($field);
-
-            $queryBuilder
-                ->andWhere(sprintf($wrapCase('%s.%s').' IN (:%s)', $alias, $field, $valueParameter))
-                ->setParameter($valueParameter, $caseSensitive ? $values : array_map('strtolower', $values));
+            $this->setOrClause($queryBuilder, $queryNameGenerator, $values, $alias, $field, $doctrineTypeField, $caseSensitive);
         }
 
         // metadata doesn't have the field, nor an association on the field
@@ -171,12 +167,26 @@ class SearchFilter extends AbstractContextAwareFilter implements SearchFilterInt
         if (1 === \count($values)) {
             $queryBuilder
                 ->andWhere(sprintf('%s.%s = :%s', $associationAlias, $associationField, $valueParameter))
-                ->setParameter($valueParameter, $values[0]);
+                ->setParameter($valueParameter, $values[0], $doctrineTypeField);
         } else {
-            $queryBuilder
-                ->andWhere(sprintf('%s.%s IN (:%s)', $associationAlias, $associationField, $valueParameter))
-                ->setParameter($valueParameter, $values);
+            $this->setOrClause($queryBuilder, $queryNameGenerator, $values, $associationAlias, $associationField, $doctrineTypeField, $caseSensitive);
         }
+    }
+
+    /**
+     * Custom method added by fork owner
+     */
+    private function setOrClause(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, array $values, $alias, $field, $doctrineTypeField, $caseSensitive)
+    {
+        $wrapCase = $this->createWrapCase($caseSensitive);
+        $orX = $queryBuilder->expr()->orX();
+        foreach ($values as $value) {
+            $valueParameter = $queryNameGenerator->generateParameterName($field);
+            $orX->add(sprintf($wrapCase('%s.%s').' = :%s', $alias, $field, $valueParameter));
+            $queryBuilder->setParameter($valueParameter, $caseSensitive ? $value : strtolower($value), $doctrineTypeField);
+        }
+
+        $queryBuilder->andWhere($orX);
     }
 
     /**
@@ -184,7 +194,7 @@ class SearchFilter extends AbstractContextAwareFilter implements SearchFilterInt
      *
      * @throws InvalidArgumentException If strategy does not exist
      */
-    protected function addWhereByStrategy(string $strategy, QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $alias, string $field, $value, bool $caseSensitive)
+    protected function addWhereByStrategy(string $strategy, QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $alias, string $field, $value, bool $caseSensitive, $doctrineTypeField)
     {
         $wrapCase = $this->createWrapCase($caseSensitive);
         $valueParameter = $queryNameGenerator->generateParameterName($field);
@@ -194,27 +204,27 @@ class SearchFilter extends AbstractContextAwareFilter implements SearchFilterInt
             case self::STRATEGY_EXACT:
                 $queryBuilder
                     ->andWhere(sprintf($wrapCase('%s.%s').' = '.$wrapCase(':%s'), $alias, $field, $valueParameter))
-                    ->setParameter($valueParameter, $value);
+                    ->setParameter($valueParameter, $value, $doctrineTypeField);
                 break;
             case self::STRATEGY_PARTIAL:
                 $queryBuilder
                     ->andWhere(sprintf($wrapCase('%s.%s').' LIKE '.$wrapCase('CONCAT(\'%%\', :%s, \'%%\')'), $alias, $field, $valueParameter))
-                    ->setParameter($valueParameter, $value);
+                    ->setParameter($valueParameter, $value, $doctrineTypeField);
                 break;
             case self::STRATEGY_START:
                 $queryBuilder
                     ->andWhere(sprintf($wrapCase('%s.%s').' LIKE '.$wrapCase('CONCAT(:%s, \'%%\')'), $alias, $field, $valueParameter))
-                    ->setParameter($valueParameter, $value);
+                    ->setParameter($valueParameter, $value, $doctrineTypeField);
                 break;
             case self::STRATEGY_END:
                 $queryBuilder
                     ->andWhere(sprintf($wrapCase('%s.%s').' LIKE '.$wrapCase('CONCAT(\'%%\', :%s)'), $alias, $field, $valueParameter))
-                    ->setParameter($valueParameter, $value);
+                    ->setParameter($valueParameter, $value, $doctrineTypeField);
                 break;
             case self::STRATEGY_WORD_START:
                 $queryBuilder
                     ->andWhere(sprintf($wrapCase('%1$s.%2$s').' LIKE '.$wrapCase('CONCAT(:%3$s, \'%%\')').' OR '.$wrapCase('%1$s.%2$s').' LIKE '.$wrapCase('CONCAT(\'%% \', :%3$s, \'%%\')'), $alias, $field, $valueParameter))
-                    ->setParameter($valueParameter, $value);
+                    ->setParameter($valueParameter, $value, $doctrineTypeField);
                 break;
             default:
                 throw new InvalidArgumentException(sprintf('strategy %s does not exist.', $strategy));
